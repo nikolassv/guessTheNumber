@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>Guess the number</title>
+        <meta name="description" content="Guess the number of circles">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+		
+		<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+		
+		<style>
+			html, body {
+				width: 100%;
+				height: 100%;
+				margin: 0px;
+			}
+			
+			#interaction-state {
+				margin-top: 100px;
+			}
+		</style>
+    </head>
+    <body>
+        <!--[if lt IE 8]>
+            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+		
+		<canvas id="main-canvas" style="display: none"></canvas>
+	
+		<div class="pure-g" id="interaction-state">
+			<div class="pure-u-1-5"></div>
+			<div class="pure-u-3-5">
+				
+				<div id="start-state">
+					<p>On the next screen you will see some circles
+					<form class="pure-form">
+						<button class="pure-button pure-button-primary"  id="start-btn">Start</button>
+					</form>
+				</div>
+				
+				<form class="pure-form-stacked" id="guess-state" style="display: none">
+					<p> Now, guess the number of circles you have seen!</p>
+					<label>
+						Your first guess:
+						<input type="text" name="first-guess">
+					</label>			
+					<label>
+						Imagine someone told you that your first guess was wrong: What would be your second guess?			
+						<input type="text" name="second-guess">				
+					</label>
+					
+					<p><button id="submit-guess" class="pure-button pure-button-primary">Check</button></p>
+				</form>
+				
+				<div id="solution-state" style="display: none">
+					<table class="pure-table">
+						<tr>
+							<td>Your first guess:</td>
+							<td id="table-first-guess"></td>
+						</tr>
+						<tr>
+							<td>Your second guess:</td>
+							<td id="table-second-guess"></td>
+						</tr>	
+						<tr>
+							<td>Average:</td>
+							<td id="table-average-guess"></td>
+						</tr>
+						<tr>
+							<td>Correct number of circles:</td>
+							<td id="table-number"></td>
+						</tr>						
+					</table>
+					
+					<p>
+						<span id="solution-better" style="display: none">Your average guess is more accurate then your first guess!</span>
+						<span id="solution-worse" style="display: none">Your average guess is not better then your first guess!</span>
+					</p>
+					
+					<table class="pure-table">
+						<tr>
+							<td>Times you tried this:</td>
+							<td id="table-tries"></td>
+						</tr>
+						<tr>
+							<td>Times the average guess has been more accurate:</td>
+							<td id="table-more-accurate"></td>
+						</tr>				
+					</table>
+					
+					<p><button id="retry" class="pure-button pure-button-primary">Retry</button></p>
+				</div>
+			</div>
+			<div class="pure-u-1-5"></div>
+		</div>
+
+        <!-- Add your site or application content here -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+		<script>
+			// states
+			var $interactionState = $('#interaction-state');
+			var $startState = $('#start-state');
+			var $guessState = $('#guess-state');
+			var $solutionState = $('#solution-state');
+			
+			// elements
+			var $canvas = $('#main-canvas');					
+			var $guessButton = $('#submit-guess');			
+			
+			var $formFirstGuess = $('[name=first-guess]');
+			var $formSecondGuess = $('[name=second-guess]');
+			
+			var $tableFirstGuess = $('#table-first-guess');
+			var $tableSecondGuess = $('#table-second-guess');
+			var $tableAverageGuess = $('#table-average-guess');
+			var $tableNumber = $('#table-number');
+			var $tableTries = $('#table-tries');
+			var $tableMoreAccurate = $('#table-more-accurate');
+			
+			var $solutionBetter = $('#solution-better');
+			var $solutionWorse = $('#solution-worse');
+			
+			// number of milliseconds the circles should be displayed to the user
+			var CIRCLE_DURATION = 2000;
+			
+			// number of circles
+			var numCircles;
+
+			// load previous results from localStorage if possible
+			var numberOfTries = parseInt(localStorage.getItem('numberOfTries'));
+			var numberOfMoreAccurate = parseInt(localStorage.getItem('numberOfMoreAccurate'));
+			
+			numberOfTries = isFinite(numberOfTries) ? numberOfTries : 0;
+			numberOfMoreAccurate = isFinite(numberOfMoreAccurate) ? numberOfMoreAccurate : 0;
+			
+			// show canvas on 'start' and 'retry'
+			$('#start-btn').on('click', showCanvas);		
+			$('#retry').on('click', showCanvas);
+			
+			// show solution on 'guess'
+			$guessButton.on('click', function(evt) {
+				evt.preventDefault();
+				$guessState.fadeOut(showSolutionTable);
+			});			
+			
+			// paints circles and shows the canvas for a short period of time
+			function showCanvas(evt) {
+				evt.preventDefault();
+				
+				numCircles = Math.floor(Math.random() * 50) + 10;
+				drawCircles($canvas[0], numCircles);
+				
+				$interactionState.fadeOut(function() {
+					$canvas.fadeIn().delay(CIRCLE_DURATION).fadeOut(showGuessForm);
+				});
+			}
+			
+			// empties and shows the guess form
+			function showGuessForm() {
+				$solutionState.hide();
+				$startState.hide();
+				$guessState.show();
+				
+				$formFirstGuess.val('')
+				$formSecondGuess.val('')
+				$interactionState.fadeIn();
+			}
+			
+			// calculates result and shows the solution
+			function showSolutionTable() {
+				var firstGuess = parseInt($formFirstGuess.val());
+				var secondGuess = parseInt($formSecondGuess.val());
+				var average = (firstGuess + secondGuess) / 2;
+				var isBetter = Math.abs(numCircles - firstGuess) > Math.abs(numCircles - average);
+
+				numberOfTries++; 
+				
+				if (isBetter) {
+					$solutionBetter.show();
+					$solutionWorse.hide();
+					numberOfMoreAccurate++;
+				} else {
+					$solutionBetter.hide();
+					$solutionWorse.show();
+				}
+				
+				var percentMoreAccurate = Math.floor(numberOfMoreAccurate * 100 / numberOfTries);
+				
+				$tableFirstGuess.text(firstGuess);
+				$tableSecondGuess.text(secondGuess);
+				$tableAverageGuess.text(average);
+				$tableNumber.text(numCircles);
+				
+				$tableTries.text(numberOfTries);
+				$tableMoreAccurate.text(numberOfMoreAccurate + ' ( ' + percentMoreAccurate +'% )');
+				
+				$solutionState.fadeIn();
+				
+				localStorage.setItem('numberOfTries', numberOfTries);
+				localStorage.setItem('numberOfMoreAccurate', numberOfMoreAccurate);
+			}
+			
+			// draws the circles on the canvas
+			function drawCircles(canvas, max) {
+				var ctx = canvas.getContext('2d');
+				var w = window.innerWidth - 5;
+				var h = window.innerHeight - 5
+				
+				var i, x, y;
+				
+				ctx.canvas.width = w;
+				ctx.canvas.height = h;
+				
+				for (i = 0; i < max; i++) {
+					x = Math.floor(Math.random() * w);
+					y = Math.floor(Math.random() * h);
+					ctx.beginPath();
+					ctx.arc(x, y, 20, 0, 2 * Math.PI);
+					ctx.stroke();
+				}
+			}
+			
+		</script>
+    </body>
+</html>
